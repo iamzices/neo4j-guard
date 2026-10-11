@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+      - run: pipx install poetry && poetry install
+      - run: poetry run ruff check
+      - run: poetry run ruff format --check
+      - run: poetry run mypy
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: # Oldest and newest supported versions.
+          - { python: "3.10", neo4j: "5.8.0" }
+          - { python: "3.x" }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pipx install poetry && poetry install
+      - if: matrix.neo4j
+        run: poetry run pip install neo4j==${{ matrix.neo4j }}
+      - run: poetry run pytest
+
+  publish:
+    if: github.event_name == 'release'
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx install poetry && poetry build
+      - uses: pypa/gh-action-pypi-publish@release/v1

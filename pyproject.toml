@@ -1,0 +1,54 @@
+[project]
+name = "neo4j-guard"
+version = "0.1.0"
+description = "A guardrail for LLM-generated Cypher, built for Neo4j."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "src/neo4j_guard/_parser/LICENSE"]
+authors = [{ name = "Zices", email = "hello@zices.com" }]
+requires-python = ">=3.10"
+dependencies = [
+    "neo4j>=5.8",
+    "antlr4-python3-runtime==4.13.2", # Must match ANTLR_VERSION in scripts/generate_parser.sh.
+]
+
+[project.urls]
+Repository = "https://github.com/iamzices/neo4j-guard"
+
+[build-system]
+requires = ["poetry-core>=2.1"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.17.0,<0.18.0)",
+    "mypy (>=2.4.0,<3.0.0)",
+    "pytest (>=9.1.1,<10.0.0)",
+]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["src/neo4j_guard/_parser"]
+
+[tool.ruff.lint]
+extend-select = ["I", "B", "UP", "D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D103"] # Test names say what they check.
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+exclude = "_parser/"
+untyped_calls_exclude = ["neo4j"] # neo4j.Record() has no type hints.
+
+[[tool.mypy.overrides]]
+module = ["antlr4.*", "neo4j_guard._parser.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+filterwarnings = ["error"]
