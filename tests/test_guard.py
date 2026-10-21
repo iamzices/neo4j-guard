@@ -103,6 +103,13 @@ def test_iter_blocks_records(driver: neo4j.Driver) -> None:
         next(records)
 
 
+def test_buffer_blocks_records_that_fetch_returns(driver: neo4j.Driver) -> None:
+    res = result(guard(driver, disallow=["Person.ssn"]), 1, PERSON)
+    neo4j.Result._buffer(res, 1)
+    with pytest.raises(GuardError, match="Person with property ssn"):
+        neo4j.Result._buffer(res, 2)
+
+
 def test_async_run_checks_queries(async_driver: neo4j.AsyncDriver, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_guard, "_async_run", run := AsyncMock())
     res = result(guard(async_driver))
@@ -119,3 +126,9 @@ def test_async_iter_checks_records(async_driver: neo4j.AsyncDriver) -> None:
     assert [record["n"] for record in asyncio.run(collect(neo4j.AsyncResult.__aiter__(result(driver, 1))))] == [1]
     with pytest.raises(GuardError, match="Person with property ssn"):
         asyncio.run(collect(neo4j.AsyncResult.__aiter__(result(driver, PERSON))))
+
+
+def test_async_buffer_checks_records(async_driver: neo4j.AsyncDriver) -> None:
+    res = result(guard(async_driver, disallow=["Person.ssn"]), PERSON)
+    with pytest.raises(GuardError, match="Person with property ssn"):
+        asyncio.run(neo4j.AsyncResult._buffer(res, 1))

@@ -55,12 +55,14 @@ from mcp_neo4j_cypher.server import create_mcp_server
 from neo4j import AsyncGraphDatabase
 from neo4j_guard import guard
 
+
 async def main() -> None:
     driver = guard(
         AsyncGraphDatabase.driver(URL, auth=AUTH),
         allow=["apoc.meta.schema"],
     )
     await create_mcp_server(driver, read_only=True).run_stdio_async()
+
 
 asyncio.run(main())
 ```

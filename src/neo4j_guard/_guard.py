@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator
+from itertools import islice
 from typing import Any, TypeVar
 from weakref import WeakKeyDictionary
 
@@ -19,8 +20,10 @@ _GUARDED: WeakKeyDictionary[Any, Rules] = WeakKeyDictionary()
 # The driver methods the hooks replace. Every query and every record of every driver goes through them.
 _run: Callable[..., None] = neo4j.Result._run
 _iter = neo4j.Result.__iter__
+_buffer: Callable[..., None] = neo4j.Result._buffer
 _async_run: Callable[..., Awaitable[None]] = neo4j.AsyncResult._run
 _async_iter = neo4j.AsyncResult.__aiter__
+_async_buffer: Callable[..., Awaitable[None]] = neo4j.AsyncResult._buffer
 
 
 def _rules_of(result: Any) -> Rules | None:
@@ -49,6 +52,15 @@ def _guarded_iter(self: Any) -> Iterator[neo4j.Record]:
         yield record
 
 
+def _guarded_buffer(self: Any, n: int | None = None) -> None:
+    """Checks the buffered records that `fetch()`, `peek()` and `single()` return."""
+    _buffer(self, n)
+    rules = _rules_of(self)
+    if rules is not None:
+        for record in islice(self._record_buffer, n):
+            check_record(record, rules)
+
+
 async def _guarded_async_run(self: Any, query: Any, *args: Any) -> None:
     """Checks a query before the async driver sends it."""
     rules = _rules_of(self)
@@ -70,10 +82,21 @@ async def _guarded_async_iter(self: Any) -> AsyncIterator[neo4j.Record]:
         yield record
 
 
+async def _guarded_async_buffer(self: Any, n: int | None = None) -> None:
+    """Checks the buffered records that the async `fetch()`, `peek()` and `single()` return."""
+    await _async_buffer(self, n)
+    rules = _rules_of(self)
+    if rules is not None:
+        for record in islice(self._record_buffer, n):
+            check_record(record, rules)
+
+
 neo4j.Result._run = _guarded_run  # type: ignore[method-assign]
 neo4j.Result.__iter__ = _guarded_iter  # type: ignore[method-assign]
+neo4j.Result._buffer = _guarded_buffer  # type: ignore[method-assign]
 neo4j.AsyncResult._run = _guarded_async_run  # type: ignore[method-assign]
 neo4j.AsyncResult.__aiter__ = _guarded_async_iter  # type: ignore[method-assign]
+neo4j.AsyncResult._buffer = _guarded_async_buffer  # type: ignore[method-assign]
 
 
 def guard(
