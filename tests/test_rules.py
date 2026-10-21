@@ -79,6 +79,13 @@ def test_dotted_name_blocks_property() -> None:
     assert rules.blocked_keys == {"salary"}
 
 
+def test_entries_ignore_surrounding_spaces() -> None:
+    rules = Rules.build("read", [" apoc.load.json "], [" Employee ", "Person.ssn "])
+    assert rules.allows_procedure("apoc.load.json")
+    assert rules.blocked_labels == {"Employee"}
+    assert rules.blocked_properties == {("Person", "ssn")}
+
+
 @pytest.mark.parametrize("name", ["db.labels", "db.nameFromElementId", "apoc.when"])
 def test_procedure_and_function_names_are_not_properties(name: str) -> None:
     assert not Rules.build("read", [], [name]).blocked_properties

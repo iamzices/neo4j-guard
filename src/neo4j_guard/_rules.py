@@ -127,6 +127,7 @@ class Rules:
         for entry in (*allow, *disallow):
             if not isinstance(entry, str) or not entry.strip():
                 raise ValueError(f"allow and disallow entries must be non-empty strings, not {entry!r}")
+        allow, disallow = [e.strip() for e in allow], [e.strip() for e in disallow]
 
         resolved = _MODES[mode]
         defaults = READ_CLAUSES if resolved == "read" else WRITE_CLAUSES
