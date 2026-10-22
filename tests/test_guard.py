@@ -1,4 +1,4 @@
-"""Tests for `guard` and the hooks it puts on the driver."""
+"""Tests for `guard`, the hooks it puts on the driver, and `check`."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import neo4j
 import pytest
 from neo4j.graph import Graph, Node
 
-from neo4j_guard import GuardError, _guard, guard
+from neo4j_guard import GuardError, _guard, check, guard
 
 PERSON = Node(Graph(), "4:test:0", 0, ["Person"], {"ssn": "123"})
 
@@ -132,3 +132,47 @@ def test_async_buffer_checks_records(async_driver: neo4j.AsyncDriver) -> None:
     res = result(guard(async_driver, disallow=["Person.ssn"]), PERSON)
     with pytest.raises(GuardError, match="Person with property ssn"):
         asyncio.run(neo4j.AsyncResult._buffer(res, 1))
+
+
+def test_check_allows_query() -> None:
+    check("MATCH (n:Person) RETURN n.name")
+
+
+def test_check_blocks_query() -> None:
+    with pytest.raises(GuardError, match="CREATE is not allowed in read mode"):
+        check("CREATE (:Person)")
+
+
+def test_check_rejects_invalid_cypher() -> None:
+    with pytest.raises(GuardError, match="invalid Cypher"):
+        check("MATCH (n RETURN n")
+
+
+def test_check_uses_mode() -> None:
+    check("CREATE (:Person)", "write")
+    check("CREATE (:Person)", "readwrite")
+
+
+def test_check_uses_allow() -> None:
+    check("CALL apoc.meta.schema()", allow=["apoc.meta.schema"])
+    with pytest.raises(GuardError, match="procedure apoc.meta.schema is not allowed"):
+        check("CALL apoc.meta.schema()")
+
+
+def test_check_uses_disallow() -> None:
+    with pytest.raises(GuardError, match="label or relationship type Employee is not allowed"):
+        check("MATCH (n:Employee) RETURN n.name", disallow=["Employee"])
+    with pytest.raises(GuardError, match="property ssn is not allowed"):
+        check("MATCH (n:Person) RETURN n.ssn", disallow=["Person.ssn"])
+
+
+def test_check_disallow_takes_precedence_over_allow() -> None:
+    with pytest.raises(GuardError, match="DELETE is not allowed in write mode"):
+        check("MATCH (n) DELETE n", "write", allow=["DELETE"], disallow=["DELETE"])
+
+
+def test_check_rejects_invalid_settings() -> None:
+    with pytest.raises(ValueError, match="mode must be"):
+        check("MATCH (n) RETURN n", "admin")  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="lists of strings"):
+        check("MATCH (n) RETURN n", allow="DELETE")
