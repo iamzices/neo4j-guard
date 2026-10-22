@@ -1,4 +1,4 @@
-"""`guard()`, and the hooks that check every query a guarded driver sends and every record it returns."""
+"""`guard()`, the hooks that check every query a guarded driver sends and every record it returns, and `check()`."""
 
 from __future__ import annotations
 
@@ -136,3 +136,27 @@ def guard(
         raise ValueError("the driver is already guarded; create a separate driver for each mode")
     _GUARDED[driver._pool] = rules
     return driver
+
+
+def check(
+    query: str,
+    mode: ModeName = "read",
+    *,
+    allow: Iterable[str] | None = None,
+    disallow: Iterable[str] | None = None,
+) -> None:
+    """Checks a query without a driver, with the same rules as `guard()`.
+
+    Args:
+        query: The Cypher query.
+        mode: "read" (the default) or "write", which also allows creating and updating data.
+            "readonly" and "readwrite" are aliases for "read" and "write".
+        allow: Entries to allow on top of the mode's defaults.
+        disallow: Entries to block. They take precedence over `allow`.
+
+    Raises:
+        GuardError: If the query is invalid or not allowed.
+        ValueError: If `mode` or an entry is invalid.
+        TypeError: If `allow` or `disallow` is a single string instead of a list.
+    """
+    check_query(query, Rules.build(mode, allow or (), disallow or ()))
