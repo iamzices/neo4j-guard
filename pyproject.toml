@@ -1,7 +1,7 @@
 [project]
 name = "neo4j-guard"
 version = "0.2.0"
-description = "A guardrail for LLM-generated Cypher, built for Neo4j."
+description = "neo4j-guard is a Python library that blocks unsafe Cypher queries before execution."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "src/neo4j_guard/_parser/LICENSE"]
